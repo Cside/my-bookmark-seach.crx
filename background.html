@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <script>
+function c (s) { console.log(s) }
+//function c (s) { alert(s) }
+function a (s) { alert(JSON.toString(s)) }
+
+function onInputChangedListener (originalQuery, suggest) {
+    if (originalQuery.length == 0) return;
+
+    if (originalQuery.match(/[A-Z][a-z]/)) {
+        var query = originalQuery;
+    } else {
+        var query = originalQuery.toLowerCase();
+    }
+
+    var req = new XMLHttpRequest();
+    req.open('GET', 'http://b.hatena.ne.jp/Cside/search/json?limit=5&q=' + encodeURIComponent(query), true);
+    req.onreadystatechange = function (e) {
+        if (req.readyState == 4) {
+            if (req.status == 200) {
+                var res = JSON.parse(req.responseText);
+                var suggests = res.bookmarks.map(function (bookmark) {
+                    var url = bookmark.entry.url;
+                    var title = bookmark.entry.title;
+                    title = title.replace(/[\/\\<>&"']/g, '')
+                    //title = truncate(title, 64);
+                    query.split(/\s/).forEach(function (q) {
+                        var re = new RegExp(q.replace(/\W/g, '\\$&'), 'ig');
+                        title = title.replace(re, '<match>$&</match>');
+                    });
+                    var description = title + ' <url>' + url + '</url>';
+                    console.log(description);
+                    return {
+                        content:     url,
+                        description: description,
+                    };
+                });
+                suggest(suggests);
+                
+            } else {
+                console.log(e);
+            }
+        }
+    };
+    req.send(null);
+}
+
+function setupOnInputListener () {
+    chrome.omnibox.setDefaultSuggestion({
+        description: 'Search my bookmarks for <match>%s</match>'
+    });
+
+    chrome.omnibox.onInputChanged.addListener(onInputChangedListener);
+
+    chrome.omnibox.onInputEntered.addListener(
+        function(text) {
+            if (text.match(/^http:/)) {
+                chrome.tabs.getSelected(null, function (tab) {
+                    chrome.tabs.update(tab.id, { url: text });
+                });
+            }
+        }
+    );
+}
+
+chrome.omnibox.onInputStarted.addListener(setupOnInputListener);
+
+function truncate(str, size, suffix) {
+    if (!str)    str = '';
+    if (!size)   size = 32;
+    if (!suffix) suffix = '...';
+    var b = 0;
+    for (var i = 0;  i < str.length; i++) {
+        b += str.charCodeAt(i) <= 255 ? 1 : 2;
+        if (b > size) {
+            return str.substr(0, i) + suffix;
+        }
+    }
+    return str;
+}
+  </script>
+</html>
