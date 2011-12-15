@@ -5,48 +5,39 @@
   </head>
   <script>
 function c (s) { console.log(s) }
-//function c (s) { alert(s) }
-function a (s) { alert(JSON.toString(s)) }
+function a (s) { alert(s) }
 
-function onInputChangedListener (originalQuery, suggest) {
-    if (originalQuery.length == 0) return;
+var INDEX = [];
+var lastQuery;
+function onInputChangedListener (query, suggest) {
+    if (lastQuery == query || query.length == 0) return;
+    lastQuery = query;
 
-    if (originalQuery.match(/[A-Z][a-z]/)) {
-        var query = originalQuery;
-    } else {
-        var query = originalQuery.toLowerCase();
-    }
-
-    var req = new XMLHttpRequest();
-    req.open('GET', 'http://b.hatena.ne.jp/Cside/search/json?limit=5&q=' + encodeURIComponent(query), true);
-    req.onreadystatechange = function (e) {
-        if (req.readyState == 4) {
-            if (req.status == 200) {
-                var res = JSON.parse(req.responseText);
-                var suggests = res.bookmarks.map(function (bookmark) {
-                    var url = bookmark.entry.url;
-                    var title = bookmark.entry.title;
-                    title = title.replace(/[\/\\<>&"']/g, '')
-                    //title = truncate(title, 64);
-                    query.split(/\s/).forEach(function (q) {
-                        var re = new RegExp(q.replace(/\W/g, '\\$&'), 'ig');
-                        title = title.replace(re, '<match>$&</match>');
-                    });
-                    var description = title + ' <url>' + url + '</url>';
-                    console.log(description);
-                    return {
-                        content:     url,
-                        description: description,
-                    };
-                });
-                suggest(suggests);
-                
-            } else {
-                console.log(e);
+    var suggests = [];
+    for (var i = 0; i < INDEX.length; i++) {
+        var index   = INDEX[i];
+        var title   = index[0];
+            title   = title.replace(/[<>&"']/g, '')
+          //title   = truncate(title, 64);
+        var comment = index[1];
+        var url     = index[2];
+        var match   = 0;
+        query.split(/\s/).forEach(function (q) {
+            var re = new RegExp(q.replace(/\W/g, '\\$&'), 'ig');
+            if ((title + comment + url).match(re)) {
+                title = title.replace(re, '<match>$&</match>');
+                match++
             }
+        });
+        if (query.split(/\s/).length === match) {
+            suggests.push({
+                content:     url,
+                description: title + ' <url>' + url + '</url>',
+            });
         }
-    };
-    req.send(null);
+        if (suggests.length >= 5) break;
+    }
+    suggest(suggests);
 }
 
 function setupOnInputListener () {
@@ -67,8 +58,38 @@ function setupOnInputListener () {
     );
 }
 
-chrome.omnibox.onInputStarted.addListener(setupOnInputListener);
+chrome.omnibox.onInputStarted.addListener(
+    function () {
+        // make index
+        var req = new XMLHttpRequest();
+        req.open('GET', 'http://b.hatena.ne.jp/my/search.data', true);
+        req.onreadystatechange = function (e) {
+            if (req.readyState == 4) {
+                if (req.status == 200) {
+                    var lines = req.responseText.split(/\n/);
+                    var index = [];
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.match(/^[\d]+\t[\d]+\n?$/)) break;
 
+                        index[i % 3] = line;
+                        if (i % 3 === 2) {
+                            INDEX.push(index);
+                            index = [];
+                        }
+                    }
+                    setupOnInputListener();
+                    
+                } else {
+                    console.log(e);
+                }
+            }
+        };
+        req.send(null);
+    }
+);
+
+// Utils
 function truncate(str, size, suffix) {
     if (!str)    str = '';
     if (!size)   size = 32;
@@ -82,5 +103,6 @@ function truncate(str, size, suffix) {
     }
     return str;
 }
+
   </script>
 </html>
