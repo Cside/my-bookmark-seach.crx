@@ -34,7 +34,9 @@ function onInputChangedListener (query, suggest) {
             count++;
             if (count < offset) continue;
             if ((limit + offset) <= count) break;
+
             targets.push(index);
+            if (targets.length >= limit) break;
         }
     }
 
