@@ -13,30 +13,50 @@ function onInputChangedListener (query, suggest) {
     if (lastQuery == query || query.length == 0) return;
     lastQuery = query;
 
-    var suggests = [];
+    var limit  = 5;
+    var offset = 0;
+    var match;
+    if (match = query.match(/(\.+)$/)) {
+        offset = limit * (match[1].split(/\./).length - 1);
+        query = query.replace(/\.+$/, '');
+    }
+
+    var targets = [];
+    var count = 0;
     for (var i = 0; i < INDEX.length; i++) {
         var index   = INDEX[i];
+        var match   = 0;
+        query.split(/\s/).forEach(function (q) {
+            var re = new RegExp(q.replace(/\W/g, '\\$&'), 'ig');
+            if ((index[0] + index[1] + index[2]).match(re)) match++
+        });
+        if (query.split(/\s/).length == match) {
+            count++;
+            if (count < offset) continue;
+            if ((limit + offset) <= count) break;
+            targets.push(index);
+        }
+    }
+
+    var suggests = [];
+    targets.forEach(function (index) {
         var title   = index[0];
             title   = title.replace(/[<>&"']/g, '')
           //title   = truncate(title, 64);
         var comment = index[1];
         var url     = index[2];
-        var match   = 0;
+
         query.split(/\s/).forEach(function (q) {
             var re = new RegExp(q.replace(/\W/g, '\\$&'), 'ig');
-            if ((title + comment + url).match(re)) {
-                title = title.replace(re, '<match>$&</match>');
-                match++
-            }
+            title = title.replace(re, '<match>$&</match>');
         });
-        if (query.split(/\s/).length === match) {
-            suggests.push({
-                content:     url,
-                description: title + ' <url>' + url + '</url>',
-            });
-        }
-        if (suggests.length >= 5) break;
-    }
+
+        suggests.push({
+            description: title + ' <url>' + url + '</url>',
+            content:     url,
+        });
+    });
+
     suggest(suggests);
 }
 
@@ -79,7 +99,7 @@ chrome.omnibox.onInputStarted.addListener(
                         }
                     }
                     setupOnInputListener();
-                    
+
                 } else {
                     console.log(e);
                 }
