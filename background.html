@@ -32,11 +32,9 @@ function onInputChangedListener (query, suggest) {
         });
         if (query.split(/\s/).length == match) {
             count++;
-            if (count < offset) continue;
-            if ((limit + offset) <= count) break;
-
+            if (count <= offset) continue;
+            if ((limit + offset) < count) break;
             targets.push(index);
-            if (targets.length >= limit) break;
         }
     }
 
