@@ -1,9 +1,3 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-  </head>
-  <script>
 function c (s) { console.log(s) }
 function a (s) { alert(s) }
 
@@ -109,7 +103,7 @@ chrome.omnibox.onInputStarted.addListener(
     }
 );
 
-// Utils
+// Utils.
 function truncate(str, size, suffix) {
     if (!str)    str = '';
     if (!size)   size = 32;
@@ -123,6 +117,3 @@ function truncate(str, size, suffix) {
     }
     return str;
 }
-
-  </script>
-</html>
